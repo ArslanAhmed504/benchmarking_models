@@ -1,0 +1,645 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head><body><title>Invoice Extraction Benchmark — Sep 2026</title>
+<style>
+  :root {
+    color-scheme: light;
+    --page: #f9f9f7;
+    --surface: #fcfcfb;
+    --ink: #0b0b0b;
+    --ink-2: #52514e;
+    --muted: #898781;
+    --grid: #e1e0d9;
+    --baseline: #c3c2b7;
+    --border: rgba(11,11,11,0.10);
+    --series: #2a78d6;
+    --tile-num: #104281;
+    --zebra: #eef2f9;
+    --f-exact: #0d366b;
+    --f-format: #1c5cab;
+    --f-wrong: #3987e5;
+    --f-missing: #86b6ef;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      color-scheme: dark;
+      --page: #0d0d0d;
+      --surface: #1a1a19;
+      --ink: #ffffff;
+      --ink-2: #c3c2b7;
+      --muted: #898781;
+      --grid: #2c2c2a;
+      --baseline: #383835;
+      --border: rgba(255,255,255,0.10);
+      --series: #3987e5;
+      --tile-num: #9ec5f4;
+      --zebra: #1a1f27;
+      --f-exact: #9ec5f4;
+      --f-format: #5598e7;
+      --f-wrong: #2a78d6;
+      --f-missing: #184f95;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --page: #0d0d0d;
+    --surface: #1a1a19;
+    --ink: #ffffff;
+    --ink-2: #c3c2b7;
+    --muted: #898781;
+    --grid: #2c2c2a;
+    --baseline: #383835;
+    --border: rgba(255,255,255,0.10);
+    --series: #3987e5;
+    --tile-num: #9ec5f4;
+    --zebra: #1a1f27;
+    --f-exact: #9ec5f4;
+    --f-format: #5598e7;
+    --f-wrong: #2a78d6;
+    --f-missing: #184f95;
+  }
+  :root[data-theme="light"] {
+    color-scheme: light;
+    --page: #f9f9f7;
+    --surface: #fcfcfb;
+    --ink: #0b0b0b;
+    --ink-2: #52514e;
+    --muted: #898781;
+    --grid: #e1e0d9;
+    --baseline: #c3c2b7;
+    --border: rgba(11,11,11,0.10);
+    --series: #2a78d6;
+    --tile-num: #104281;
+    --zebra: #eef2f9;
+    --f-exact: #0d366b;
+    --f-format: #1c5cab;
+    --f-wrong: #3987e5;
+    --f-missing: #86b6ef;
+  }
+
+  body {
+    background: var(--page);
+    color: var(--ink);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    line-height: 1.55;
+    margin: 0;
+  }
+  .wrap { max-width: 1020px; margin: 0 auto; padding: 40px 24px 72px; }
+
+  header.report { border-bottom: 1px solid var(--grid); padding-bottom: 24px; margin-bottom: 28px; }
+  .eyebrow {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--muted); margin: 0 0 10px;
+  }
+  h1 { font-size: 28px; font-weight: 650; letter-spacing: -0.015em; margin: 0 0 12px; text-wrap: balance; }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    font-size: 12px; color: var(--ink-2); background: var(--surface);
+    border: 1px solid var(--border); border-radius: 999px; padding: 3px 11px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  section { margin: 36px 0; }
+  h2 { font-size: 18px; font-weight: 650; letter-spacing: -0.01em; margin: 0 0 4px; }
+  .sub { font-size: 13px; color: var(--ink-2); margin: 0 0 16px; max-width: 68ch; }
+  p { max-width: 72ch; }
+
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; margin: 0 0 18px; }
+  .tile {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px 16px 12px;
+  }
+  .tile .k { font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+  .tile .v { font-size: 26px; font-weight: 650; letter-spacing: -0.01em; color: var(--tile-num); margin: 2px 0 0; }
+  .tile .d { font-size: 12.5px; color: var(--ink-2); margin-top: 2px; }
+
+  .verdict {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    padding: 16px 18px; font-size: 14px; color: var(--ink-2);
+  }
+  .verdict strong { color: var(--ink); font-weight: 620; }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    padding: 18px 18px 14px;
+  }
+  .legend { display: flex; flex-wrap: wrap; gap: 18px; font-size: 12px; color: var(--ink-2); margin: 0 0 12px; align-items: center; }
+  .legend .sw { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -1px; margin-right: 6px; }
+  .legend .dm {
+    display: inline-block; width: 9px; height: 9px; background: var(--ink);
+    transform: rotate(45deg); border-radius: 1px; vertical-align: 0; margin-right: 7px;
+  }
+  .scroller { overflow-x: auto; }
+  svg text { font-family: inherit; }
+  .axis-t { font-size: 11px; fill: var(--muted); font-variant-numeric: tabular-nums; }
+  .row-t  { font-size: 12.5px; fill: var(--ink); }
+  .val-t  { font-size: 12px; font-weight: 600; fill: var(--ink); font-variant-numeric: tabular-nums; }
+  .pt-t   { font-size: 11.5px; fill: var(--ink-2); }
+  .hint-t { font-size: 11px; fill: var(--muted); font-style: italic; }
+
+  /* heatmap */
+  .hm { display: grid; gap: 2px; font-variant-numeric: tabular-nums; min-width: 780px; }
+  .hm .rl { font-size: 12px; color: var(--ink); display: flex; align-items: center; padding-right: 10px; white-space: nowrap; }
+  .hm .cl {
+    writing-mode: vertical-rl; transform: rotate(180deg);
+    font-size: 11px; color: var(--ink-2); padding: 0 0 6px; justify-self: center;
+    max-height: 118px; overflow: hidden;
+  }
+  .hm .cell { height: 28px; border-radius: 3px; cursor: default; }
+  .hm .cell:hover { outline: 2px solid var(--ink); outline-offset: -1px; }
+  .ramp { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--muted); margin-top: 12px; }
+  .ramp .bar { display: flex; height: 10px; border-radius: 3px; overflow: hidden; width: 160px; }
+  .ramp .bar i { flex: 1; }
+
+  /* model / failure-type legends */
+  .glegend {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
+    gap: 8px 18px; font-size: 12px; color: var(--ink-2); margin-top: 14px;
+  }
+  .glegend .sw {
+    display: inline-block; width: 11px; height: 11px; border-radius: 3px;
+    vertical-align: -1px; margin-right: 7px;
+  }
+  .glegend .t { color: var(--ink); font-weight: 600; }
+  .glegend .s { display: block; margin-left: 18px; font-size: 11.5px; color: var(--muted); }
+
+  /* tables */
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td { padding: 8px 9px; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  th { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--baseline); }
+  td:first-child, th:first-child { text-align: left; }
+  tbody tr { border-bottom: 1px solid var(--grid); }
+  tbody tr:last-child { border-bottom: none; }
+  td.mname { color: var(--ink); font-weight: 500; }
+  .best { color: var(--tile-num); font-weight: 650; }
+
+  details { margin-top: 14px; }
+  summary { cursor: pointer; font-size: 13px; color: var(--ink-2); }
+  summary:focus-visible { outline: 2px solid var(--series); outline-offset: 2px; border-radius: 4px; }
+
+  .notes { font-size: 13px; color: var(--ink-2); }
+  .notes li { margin-bottom: 8px; max-width: 78ch; }
+  .fn { font-size: 12px; color: var(--muted); margin-top: 10px; }
+
+  #tip {
+    position: absolute; pointer-events: none; z-index: 10; display: none;
+    background: var(--ink); color: var(--page);
+    font-size: 12px; line-height: 1.45; padding: 7px 10px; border-radius: 6px;
+    max-width: 260px; font-variant-numeric: tabular-nums;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.25);
+  }
+  #tip b { font-weight: 650; }
+
+  @media print {
+    @page { size: A4; margin: 12mm; }
+    body { zoom: 0.78; background: #ffffff; }
+    .wrap { padding: 0; max-width: none; }
+    /* Keep every heading with the chart it introduces — a section that lands
+       across a page break reads as two unrelated fragments. */
+    section, .card, .tiles, .verdict, header.report { break-inside: avoid; }
+    h2, .sub, .legend { break-after: avoid; }
+    section { margin: 26px 0; }
+    .scroller { overflow-x: visible; }
+    #tip { display: none !important; }
+    .ramp span:last-child { display: none; }
+  }
+</style>
+
+<div class="wrap">
+  <header class="report">
+    <p class="eyebrow">Model evaluation · Document AI</p>
+    <h1>Invoice Field Extraction — Model Benchmark</h1>
+    <div class="meta">
+      <span class="chip">September 3, 2026</span>
+      <span class="chip">14 model configurations</span>
+      <span class="chip">29,308 documents scored</span>
+      <span class="chip">15 fields per invoice</span>
+      <span class="chip">$128.49 total API spend</span>
+    </div>
+  </header>
+
+  <section>
+    <h2>Key results</h2>
+    <p class="sub">Each model reads invoice PDFs as page images and returns 15 structured fields
+      (vendor, customer, totals, dates, references). The headline metric is <strong>end-to-end score</strong>:
+      the share of all fields present in a document that the model extracted correctly.</p>
+    <div class="tiles">
+      <div class="tile">
+        <div class="k">Top score</div>
+        <div class="v">89.1%</div>
+        <div class="d">Claude Fable 5.1 · $77.67 / 1k docs · 207 docs</div>
+      </div>
+      <div class="tile">
+        <div class="k">Best value</div>
+        <div class="v">87.3%</div>
+        <div class="d">Qwen 3.6 27B · $2.20 / 1k docs, open-weight</div>
+      </div>
+      <div class="tile">
+        <div class="k">Fastest response</div>
+        <div class="v">6.9 s</div>
+        <div class="d">GPT-5.6 Terra · 86.5% E2E · $8.27 / 1k docs</div>
+      </div>
+      <div class="tile">
+        <div class="k">Premium ceiling</div>
+        <div class="v">92.2%</div>
+        <div class="d">Claude Opus 5 accuracy — at $44.19 / 1k docs</div>
+      </div>
+    </div>
+    <div class="verdict">
+      <strong>Bottom line:</strong> <strong>Claude Fable 5.1</strong> posts the highest end-to-end
+      score (89.1%) and holds the top spot on the fair-subset re-score too — but that's on only 207
+      documents at $77.67/1k, a thin and expensive sample next to the rest of the field.
+      <strong>Gemini 3.6 Flash</strong> remains the strongest production pick: a large, cheap run
+      (2,323 docs, $10.04/1k) that trails the top score by just 0.2 points. <strong>Qwen 3.6 27B</strong>
+      is still the best open-weight value at roughly a fifth of Gemini's cost with only 1.6 points less
+      accuracy — its newer sibling <strong>Qwen 3.8 27B</strong> (86.8%) doesn't improve on it despite
+      the version bump. <strong>Mistral Small 3.2 24B</strong> is the cheapest credible option tested
+      at $0.39/1k for 83.0%. <strong>GPT-5.6 Terra</strong> is still the fastest model tested, and
+      <strong>Claude Opus 5</strong> still gives the most accurate individual answers (92.2%), but at
+      4–20× the unit cost of the mid-tier options it only makes sense for high-value documents.
+    </div>
+  </section>
+
+  <section>
+    <h2>Leaderboard — end-to-end extraction score</h2>
+    <p class="sub">Bars show each model on its full run. Because models processed different document
+      counts, diamonds re-score every model on the identical 118 documents all fourteen completed —
+      the ranking mostly holds, so the full-run numbers are trustworthy.</p>
+    <div class="card">
+      <div class="legend">
+        <span><span class="sw" style="background:var(--series)"></span>Full run</span>
+        <span><span class="dm"></span>Same 118 documents (fair subset)</span>
+      </div>
+      <div class="scroller" id="chart-bars"></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Cost vs. quality</h2>
+    <p class="sub">What one thousand documents cost against what you get back. Up and to the left is
+      better; the cost axis is logarithmic. Gemini 3.6 Flash (GCP deployment) is omitted — it is
+      billed through the GCP contract, so no per-call cost is reported.</p>
+    <div class="card">
+      <div class="scroller" id="chart-scatter"></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Where extraction breaks down, field by field</h2>
+    <p class="sub">End-to-end score per field. Header fields (invoice ID, dates, totals) are largely
+      solved; the losses concentrate in <strong>PO number, delivery note and payment terms</strong> —
+      mostly fields the models fail to return at all — and in vendor-name formatting mismatches.
+      Hover any cell for exact numbers.</p>
+    <div class="card">
+      <div class="scroller">
+        <div class="hm" id="heatmap"></div>
+      </div>
+      <div class="ramp">
+        <span>low</span>
+        <span class="bar" id="rampbar"></span>
+        <span>high</span>
+        <span style="margin-left:8px" id="rampnote"></span>
+      </div>
+      <details>
+        <summary>Field-level scores as a table</summary>
+        <div class="scroller" style="margin-top:10px">
+          <table id="fieldtable"></table>
+        </div>
+      </details>
+    </div>
+  </section>
+
+  <section>
+    <h2>What kind of failure is it?</h2>
+    <p class="sub">Every ground-truth field across all model runs combined — ≈395,000 comparisons —
+      split by outcome. The totals are almost never string-identical (ground truth stores raw
+      numbers, models copy the printed format) but overwhelmingly correct after normalisation.
+      Vendor name and the addresses are mostly a normalisation problem; <strong>PO number,
+      delivery note and payment terms are a coverage problem</strong> — the model returns nothing
+      at all.</p>
+    <div class="card">
+      <div class="scroller" id="chart-failure"></div>
+      <div class="glegend">
+        <span><span class="sw" style="background:var(--f-exact)"></span><span class="t">Exact match</span>
+          <span class="s">String-identical to ground truth</span></span>
+        <span><span class="sw" style="background:var(--f-format)"></span><span class="t">Formatting mismatch</span>
+          <span class="s">Right value, wrong shape — fixable downstream</span></span>
+        <span><span class="sw" style="background:var(--f-wrong)"></span><span class="t">Wrong value</span>
+          <span class="s">Silent error — the expensive one in AP</span></span>
+        <span><span class="sw" style="background:var(--f-missing)"></span><span class="t">Not returned</span>
+          <span class="s">Null or absent — routes to human review</span></span>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Full comparison</h2>
+    <div class="card">
+      <div class="scroller">
+        <table id="maintable">
+          <thead>
+            <tr>
+              <th>Model</th>
+              <th>End-to-end</th>
+              <th>E2E (118 docs)</th>
+              <th>Coverage</th>
+              <th>Accuracy</th>
+              <th>Cost / 1k docs</th>
+              <th>Tokens / doc</th>
+              <th>Latency</th>
+              <th>Docs run</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p class="fn">Coverage = share of fields present in the document that the model returned.
+        Accuracy = share of returned values that match ground truth. End-to-end = correct ÷ present.
+        Best column value in blue. * Claude Haiku 4.5 latency is inflated by rate-limit retries during
+        its run and is not comparable.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Method &amp; caveats</h2>
+    <ul class="notes">
+      <li><strong>Setup.</strong> Invoice PDFs rendered locally to page images (up to 4 pages per
+        document, 150 dpi) and sent to each model with the same extraction prompt and JSON schema,
+        temperature 0, via OpenRouter — plus one Gemini 3.6 Flash deployment on GCP Vertex for
+        comparison. Reasoning modes were capped at minimum effort so models are compared on
+        extraction, not thinking-token budgets. Two endpoints (Qwen 3.8 Max, Claude Fable 5.1) make
+        reasoning mandatory and reject it disabled outright — those two ran with reasoning forced on
+        at minimum effort, everything else with reasoning off.</li>
+      <li><strong>Ground truth.</strong> Model output is compared field-by-field against a reviewed
+        ground-truth set, with tolerant matching for dates and number formats.</li>
+      <li><strong>Document category is excluded</strong> from all scores. Every model scored ~0% on
+        it because the ground truth uses internal labels (e.g. “Expense”) while models return the
+        document’s printed type — a taxonomy mismatch to fix in the ground truth, not a model failure.</li>
+      <li><strong>Unequal run sizes.</strong> Runs range from 207 documents (Claude Fable 5.1) to
+        4,973 (Ministral 14B) because of per-model cost caps. The fair-subset re-score on the 118
+        shared documents mostly confirms the ordering — Claude Fable 5.1 and Claude Opus 5 hold the
+        top two spots either way — though Gemini 3.6 Flash drops from 2nd to 5th on the smaller
+        sample while Qwen 3.6 27B and the GCP Gemini deployment move up into 3rd and 4th.</li>
+      <li><strong>Vendor name scores understate the models.</strong> A large share of vendor-name
+        misses are formatting variants of the correct name; tightening ground-truth normalization
+        would lift every model roughly equally.</li>
+      <li><strong>Failure types</strong> (in “What kind of failure is it?”): <em>exact</em> =
+        string-identical to ground truth; <em>formatting mismatch</em> = same value after
+        normalisation (date formats, thousand separators, accents, punctuation) — these count as
+        correct in all scores; <em>wrong value</em> = returned but doesn’t match; <em>not
+        returned</em> = null or absent. Pooled across all fourteen models’ runs.</li>
+      <li><strong>Costs</strong> are actual billed OpenRouter charges at list prices, not estimates.</li>
+      <li><strong>Meta Muse Spark 1.2 was not benchmarked.</strong> OpenRouter gates that endpoint
+        behind an account-level 18+ age attestation that wasn't completed before this report was
+        built, so every call returned HTTP 403 with zero data collected — it is omitted here rather
+        than shown with a misleading 0% score.</li>
+    </ul>
+  </section>
+</div>
+<div id="tip" role="status"></div>
+
+<script>
+const DATA = {"models": [{"slug": "anthropic_claude-fable-5.1", "name": "Claude Fable 5.1", "cov": 97.0, "acc": 91.9, "e2e": 89.1, "fairE2e": 89.7, "docs": 207, "costPerDoc": 0.07767, "tokPerDoc": 6417.2, "latency": 11.13, "totalCost": 16.0776}, {"slug": "google_gemini-3.6-flash", "name": "Gemini 3.6 Flash", "cov": 97.0, "acc": 91.7, "e2e": 88.9, "fairE2e": 87.3, "docs": 2323, "costPerDoc": 0.010035, "tokPerDoc": 3163.9, "latency": 10.98, "totalCost": 23.3108}, {"slug": "anthropic_claude-opus-5", "name": "Claude Opus 5", "cov": 95.7, "acc": 92.2, "e2e": 88.3, "fairE2e": 89.1, "docs": 234, "costPerDoc": 0.044189, "tokPerDoc": 7473.4, "latency": 16.67, "totalCost": 10.3402}, {"slug": "qwen_qwen3.6-35b-a3b", "name": "Qwen 3.6 35B-A3B", "cov": 96.8, "acc": 90.3, "e2e": 87.5, "fairE2e": 84.8, "docs": 2361, "costPerDoc": 0.008742, "tokPerDoc": 11240.8, "latency": 82.92, "totalCost": 20.6408}, {"slug": "google_gemini-3.6-flash_gcp", "name": "Gemini 3.6 Flash (GCP)", "cov": 96.9, "acc": 90.2, "e2e": 87.4, "fairE2e": 88.2, "docs": 488, "costPerDoc": 0.0, "tokPerDoc": 5112.8, "latency": 12.27, "totalCost": 0.0}, {"slug": "qwen_qwen3.6-27b", "name": "Qwen 3.6 27B", "cov": 96.8, "acc": 90.2, "e2e": 87.3, "fairE2e": 88.3, "docs": 2380, "costPerDoc": 0.002197, "tokPerDoc": 4574.5, "latency": 42.48, "totalCost": 5.2285}, {"slug": "qwen_qwen3.8-27b", "name": "Qwen 3.8 27B", "cov": 96.3, "acc": 90.1, "e2e": 86.8, "fairE2e": 85.5, "docs": 3508, "costPerDoc": 0.002031, "tokPerDoc": 4203.8, "latency": 26.71, "totalCost": 7.1248}, {"slug": "openai_gpt-5.6-terra", "name": "GPT-5.6 Terra", "cov": 96.0, "acc": 90.0, "e2e": 86.5, "fairE2e": 83.6, "docs": 1815, "costPerDoc": 0.008269, "tokPerDoc": 5543.2, "latency": 6.87, "totalCost": 15.0085}, {"slug": "qwen_qwen3.8-max", "name": "Qwen 3.8 Max", "cov": 95.0, "acc": 90.4, "e2e": 85.9, "fairE2e": 85.5, "docs": 950, "costPerDoc": 0.015794, "tokPerDoc": 5865.7, "latency": 22.91, "totalCost": 15.0038}, {"slug": "mistralai_ministral-14b-2512", "name": "Ministral 14B", "cov": 95.2, "acc": 87.3, "e2e": 83.2, "fairE2e": 81.6, "docs": 4973, "costPerDoc": 0.000763, "tokPerDoc": 4126.8, "latency": 13.24, "totalCost": 3.7932}, {"slug": "mistralai_mistral-small-3.2-24b-instruct", "name": "Mistral Small 3.2 24B", "cov": 94.0, "acc": 88.3, "e2e": 83.0, "fairE2e": 83.6, "docs": 1300, "costPerDoc": 0.000391, "tokPerDoc": 4722.9, "latency": 11.43, "totalCost": 0.5079}, {"slug": "anthropic_claude-haiku-4.5", "name": "Claude Haiku 4.5", "cov": 90.0, "acc": 86.3, "e2e": 77.6, "fairE2e": 77.5, "docs": 2182, "costPerDoc": 0.004558, "tokPerDoc": 3415.1, "latency": 508.76, "totalCost": 9.9446}, {"slug": "google_gemma-4-31b-it", "name": "Gemma 4 31B", "cov": 90.7, "acc": 83.8, "e2e": 76.0, "fairE2e": 74.1, "docs": 4158, "costPerDoc": 0.000241, "tokPerDoc": 1066.9, "latency": 18.32, "totalCost": 1.003}, {"slug": "google_gemma-4-26b-a4b-it", "name": "Gemma 4 26B-A4B", "cov": 78.7, "acc": 82.0, "e2e": 64.5, "fairE2e": 63.9, "docs": 2429, "costPerDoc": 0.00021, "tokPerDoc": 1078.0, "latency": 37.27, "totalCost": 0.5107}], "fieldOrder": ["InvoiceID", "InvoiceDate", "TotalAmount", "CustomerCompanyName", "TotalTax", "TotalwithoutTax", "VendorCompanyAddress", "DueDate", "CustomerCompanyID", "VendorCompanyName", "VendorCompanyID", "CustomerCompanyAddress", "PaymentTerm", "DeliveryNote", "PONumber"], "fields": {"VendorCompanyName": {"anthropic_claude-fable-5.1": {"e2e": 74.9, "cov": 99.0, "acc": 75.6}, "anthropic_claude-haiku-4.5": {"e2e": 80.4, "cov": 99.9, "acc": 80.5}, "anthropic_claude-opus-5": {"e2e": 81.6, "cov": 99.2, "acc": 82.3}, "google_gemini-3.6-flash": {"e2e": 75.2, "cov": 99.9, "acc": 75.3}, "google_gemini-3.6-flash_gcp": {"e2e": 64.5, "cov": 100.0, "acc": 64.5}, "google_gemma-4-26b-a4b-it": {"e2e": 79.0, "cov": 99.6, "acc": 79.3}, "google_gemma-4-31b-it": {"e2e": 83.3, "cov": 99.8, "acc": 83.5}, "mistralai_ministral-14b-2512": {"e2e": 81.5, "cov": 99.0, "acc": 82.4}, "mistralai_mistral-small-3.2-24b-instruct": {"e2e": 80.8, "cov": 99.9, "acc": 80.9}, "openai_gpt-5.6-terra": {"e2e": 72.1, "cov": 99.9, "acc": 72.2}, "qwen_qwen3.6-27b": {"e2e": 78.4, "cov": 99.8, "acc": 78.6}, "qwen_qwen3.6-35b-a3b": {"e2e": 75.2, "cov": 99.8, "acc": 75.3}, "qwen_qwen3.8-27b": {"e2e": 78.4, "cov": 99.7, "acc": 78.7}, "qwen_qwen3.8-max": {"e2e": 66.8, "cov": 99.7, "acc": 67.0}}, "VendorCompanyID": {"anthropic_claude-fable-5.1": {"e2e": 93.2, "cov": 99.0, "acc": 94.1}, "anthropic_claude-haiku-4.5": {"e2e": 59.8, "cov": 92.4, "acc": 64.6}, "anthropic_claude-opus-5": {"e2e": 94.0, "cov": 98.7, "acc": 95.2}, "google_gemini-3.6-flash": {"e2e": 97.9, "cov": 99.9, "acc": 98.0}, "google_gemini-3.6-flash_gcp": {"e2e": 96.5, "cov": 99.8, "acc": 96.7}, "google_gemma-4-26b-a4b-it": {"e2e": 41.8, "cov": 67.2, "acc": 62.2}, "google_gemma-4-31b-it": {"e2e": 52.5, "cov": 87.4, "acc": 60.1}, "mistralai_ministral-14b-2512": {"e2e": 73.5, "cov": 92.4, "acc": 79.5}, "mistralai_mistral-small-3.2-24b-instruct": {"e2e": 68.5, "cov": 85.2, "acc": 80.3}, "openai_gpt-5.6-terra": {"e2e": 90.9, "cov": 98.8, "acc": 92.0}, "qwen_qwen3.6-27b": {"e2e": 84.6, "cov": 96.1, "acc": 88.0}, "qwen_qwen3.6-35b-a3b": {"e2e": 88.0, "cov": 99.4, "acc": 88.6}, "qwen_qwen3.8-27b": {"e2e": 86.2, "cov": 98.0, "acc": 87.9}, "qwen_qwen3.8-max": {"e2e": 95.1, "cov": 99.6, "acc": 95.5}}, "InvoiceDate": {"anthropic_claude-fable-5.1": {"e2e": 96.1, "cov": 99.0, "acc": 97.1}, "anthropic_claude-haiku-4.5": {"e2e": 95.7, "cov": 99.5, "acc": 96.2}, "anthropic_claude-opus-5": {"e2e": 97.0, "cov": 99.2, "acc": 97.8}, "google_gemini-3.6-flash": {"e2e": 96.3, "cov": 99.6, "acc": 96.7}, "google_gemini-3.6-flash_gcp": {"e2e": 96.7, "cov": 99.8, "acc": 96.9}, "google_gemma-4-26b-a4b-it": {"e2e": 86.5, "cov": 96.4, "acc": 89.7}, "google_gemma-4-31b-it": {"e2e": 93.4, "cov": 99.5, "acc": 93.9}, "mistralai_ministral-14b-2512": {"e2e": 94.6, "cov": 98.6, "acc": 95.9}, "mistralai_mistral-small-3.2-24b-instruct": {"e2e": 96.5, "cov": 99.7, "acc": 96.8}, "openai_gpt-5.6-terra": {"e2e": 94.0, "cov": 99.3, "acc": 94.7}, "qwen_qwen3.6-27b": {"e2e": 96.5, "cov": 99.5, "acc": 97.0}, "qwen_qwen3.6-35b-a3b": {"e2e": 96.6, "cov": 99.7, "acc": 96.8}, "qwen_qwen3.8-27b": {"e2e": 96.9, "cov": 99.6, "acc": 97.3}, "qwen_qwen3.8-max": {"e2e": 96.2, "cov": 99.0, "acc": 97.2}}, "VendorCompanyAddress": {"anthropic_claude-fable-5.1": {"e2e": 90.3, "cov": 99.5, "acc": 90.7}, "anthropic_claude-haiku-4.5": {"e2e": 78.7, "cov": 92.4, "acc": 85.2}, "anthropic_claude-opus-5": {"e2e": 92.7, "cov": 99.6, "acc": 93.1}, "google_gemini-3.6-flash": {"e2e": 92.8, "cov": 99.8, "acc": 92.9}, "google_gemini-3.6-flash_gcp": {"e2e": 91.8, "cov": 100.0, "acc": 91.8}, "google_gemma-4-26b-a4b-it": {"e2e": 67.3, "cov": 83.6, "acc": 80.5}, "google_gemma-4-31b-it": {"e2e": 75.4, "cov": 94.5, "acc": 79.7}, "mistralai_ministral-14b-2512": {"e2e": 83.0, "cov": 95.6, "acc": 86.8}, "mistralai_mistral-small-3.2-24b-instruct": {"e2e": 78.0, "cov": 86.7, "acc": 90.0}, "openai_gpt-5.6-terra": {"e2e": 91.0, "cov": 99.5, "acc": 91.5}, "qwen_qwen3.6-27b": {"e2e": 89.4, "cov": 97.4, "acc": 91.8}, "qwen_qwen3.6-35b-a3b": {"e2e": 93.1, "cov": 99.5, "acc": 93.5}, "qwen_qwen3.8-27b": {"e2e": 85.5, "cov": 99.5, "acc": 86.0}, "qwen_qwen3.8-max": {"e2e": 93.7, "cov": 99.8, "acc": 93.9}}, "CustomerCompanyName": {"anthropic_claude-fable-5.1": {"e2e": 95.6, "cov": 99.0, "acc": 96.6}, "anthropic_claude-haiku-4.5": {"e2e": 94.0, "cov": 98.7, "acc": 95.2}, "anthropic_claude-opus-5": {"e2e": 95.2, "cov": 99.1, "acc": 96.1}, "google_gemini-3.6-flash": {"e2e": 95.9, "cov": 99.9, "acc": 96.0}, "google_gemini-3.6-flash_gcp": {"e2e": 98.2, "cov": 100.0, "acc": 98.2}, "google_gemma-4-26b-a4b-it": {"e2e": 82.7, "cov": 92.8, "acc": 89.2}, "google_gemma-4-31b-it": {"e2e": 89.9, "cov": 98.8, "acc": 91.0}, "mistralai_ministral-14b-2512": {"e2e": 91.8, "cov": 98.7, "acc": 93.1}, "mistralai_mistral-small-3.2-24b-instruct": {"e2e": 94.1, "cov": 98.6, "acc": 95.4}, "openai_gpt-5.6-terra": {"e2e": 95.7, "cov": 99.8, "acc": 95.8}, "qwen_qwen3.6-27b": {"e2e": 94.5, "cov": 99.8, "acc": 94.6}, "qwen_qwen3.6-35b-a3b": {"e2e": 95.1, "cov": 99.7, "acc": 95.3}, "qwen_qwen3.8-27b": {"e2e": 94.6, "cov": 99.7, "acc": 94.9}, "qwen_qwen3.8-max": {"e2e": 96.8, "cov": 99.7, "acc": 97.1}}, "TotalAmount": {"anthropic_claude-fable-5.1": {"e2e": 94.2, "cov": 99.0, "acc": 95.1}, "anthropic_claude-haiku-4.5": {"e2e": 95.3, "cov": 99.2, "acc": 96.1}, "anthropic_claude-opus-5": {"e2e": 95.7, "cov": 98.7, "acc": 96.9}, "google_gemini-3.6-flash": {"e2e": 95.6, "cov": 99.3, "acc": 96.3}, "google_gemini-3.6-flash_gcp": {"e2e": 96.9, "cov": 99.8, "acc": 97.1}, "google_gemma-4-26b-a4b-it": {"e2e": 86.0, "cov": 98.1, "acc": 87.6}, "google_gemma-4-31b-it": {"e2e": 94.2, "cov": 99.3, "acc": 94.8}, "mistralai_ministral-14b-2512": {"e2e": 90.1, "cov": 99.3, "acc": 90.8}, "mistralai_mistral-small-3.2-24b-instruct": {"e2e": 94.2, "cov": 99.7, "acc": 94.5}, "openai_gpt-5.6-terra": {"e2e": 96.0, "cov": 98.9, "acc": 97.0}, "qwen_qwen3.6-27b": {"e2e": 95.6, "cov": 99.4, "acc": 96.2}, "qwen_qwen3.6-35b-a3b": {"e2e": 95.9, "cov": 99.5, "acc": 96.4}, "qwen_qwen3.8-27b": {"e2e": 95.0, "cov": 99.2, "acc": 95.7}, "qwen_qwen3.8-max": {"e2e": 96.9, "cov": 99.5, "acc": 97.4}}, "InvoiceID": {"anthropic_claude-fable-5.1": {"e2e": 100.0, "cov": 100.0, "acc": 100.0}, "anthropic_claude-haiku-4.5": {"e2e": 93.6, "cov": 99.9, "acc": 93.7}, "anthropic_claude-opus-5": {"e2e": 99.6, "cov": 100.0, "acc": 99.6}, "google_gemini-3.6-flash": {"e2e": 98.3, "cov": 99.4, "acc": 98.9}, "google_gemini-3.6-flash_gcp": {"e2e": 98.6, "cov": 99.6, "acc": 99.0}, "google_gemma-4-26b-a4b-it": {"e2e": 88.2, "cov": 97.2, "acc": 90.8}, "google_gemma-4-31b-it": {"e2e": 90.2, "cov": 99.7, "acc": 90.4}, "mistralai_ministral-14b-2512": {"e2e": 96.2, "cov": 99.4, "acc": 96.8}, "mistralai_mistral-small-3.2-24b-instruct": {"e2e": 97.7, "cov": 99.9, "acc": 97.8}, "openai_gpt-5.6-terra": {"e2e": 96.5, "cov": 99.5, "acc": 97.0}, "qwen_qwen3.6-27b": {"e2e": 98.1, "cov": 99.8, "acc": 98.3}, "qwen_qwen3.6-35b-a3b": {"e2e": 98.7, "cov": 99.9, "acc": 98.8}, "qwen_qwen3.8-27b": {"e2e": 97.6, "cov": 99.8, "acc": 97.8}, "qwen_qwen3.8-max": {"e2e": 98.2, "cov": 99.5, "acc": 98.7}}, "CustomerCompanyID": {"anthropic_claude-fable-5.1": {"e2e": 97.6, "cov": 98.5, "acc": 99.0}, "anthropic_claude-haiku-4.5": {"e2e": 66.4, "cov": 85.5, "acc": 77.7}, "anthropic_claude-opus-5": {"e2e": 97.8, "cov": 98.7, "acc": 99.1}, "google_gemini-3.6-flash": {"e2e": 98.0, "cov": 99.2, "acc": 98.7}, "google_gemini-3.6-flash_gcp": {"e2e": 99.2, "cov": 99.8, "acc": 99.4}, "google_gemma-4-26b-a4b-it": {"e2e": 36.8, "cov": 58.0, "acc": 63.5}, "google_gemma-4-31b-it": {"e2e": 61.3, "cov": 87.6, "acc": 70.0}, "mistralai_ministral-14b-2512": {"e2e": 83.1, "cov": 95.6, "acc": 86.9}, "mistralai_mistral-small-3.2-24b-instruct": {"e2e": 85.2, "cov": 96.2, "acc": 88.5}, "openai_gpt-5.6-terra": {"e2e": 95.8, "cov": 97.7, "acc": 98.0}, "qwen_qwen3.6-27b": {"e2e": 92.5, "cov": 97.7, "acc": 94.7}, "qwen_qwen3.6-35b-a3b": {"e2e": 94.8, "cov": 96.9, "acc": 97.9}, "qwen_qwen3.8-27b": {"e2e": 88.8, "cov": 93.9, "acc": 94.6}, "qwen_qwen3.8-max": {"e2e": 96.0, "cov": 97.8, "acc": 98.2}}, "TotalwithoutTax": {"anthropic_claude-fable-5.1": {"e2e": 90.6, "cov": 99.0, "acc": 91.5}, "anthropic_claude-haiku-4.5": {"e2e": 89.3, "cov": 99.2, "acc": 89.9}, "anthropic_claude-opus-5": {"e2e": 92.5, "cov": 98.7, "acc": 93.7}, "google_gemini-3.6-flash": {"e2e": 89.2, "cov": 99.2, "acc": 89.9}, "google_gemini-3.6-flash_gcp": {"e2e": 93.5, "cov": 99.8, "acc": 93.7}, "google_gemma-4-26b-a4b-it": {"e2e": 79.8, "cov": 93.7, "acc": 85.1}, "google_gemma-4-31b-it": {"e2e": 85.2, "cov": 98.4, "acc": 86.6}, "mistralai_ministral-14b-2512": {"e2e": 81.1, "cov": 98.6, "acc": 82.2}, "mistralai_mistral-small-3.2-24b-instruct": {"e2e": 87.4, "cov": 99.6, "acc": 87.8}, "openai_gpt-5.6-terra": {"e2e": 89.9, "cov": 99.0, "acc": 90.9}, "qwen_qwen3.6-27b": {"e2e": 89.1, "cov": 99.3, "acc": 89.8}, "qwen_qwen3.6-35b-a3b": {"e2e": 85.8, "cov": 99.2, "acc": 86.5}, "qwen_qwen3.8-27b": {"e2e": 87.1, "cov": 98.8, "acc": 88.2}, "qwen_qwen3.8-max": {"e2e": 91.4, "cov": 99.0, "acc": 92.3}}, "TotalTax": {"anthropic_claude-fable-5.1": {"e2e": 93.6, "cov": 99.0, "acc": 94.5}, "anthropic_claude-haiku-4.5": {"e2e": 94.0, "cov": 98.9, "acc": 95.0}, "anthropic_claude-opus-5": {"e2e": 94.2, "cov": 96.4, "acc": 97.7}, "google_gemini-3.6-flash": {"e2e": 93.8, "cov": 98.4, "acc": 95.3}, "google_gemini-3.6-flash_gcp": {"e2e": 95.0, "cov": 99.4, "acc": 95.6}, "google_gemma-4-26b-a4b-it": {"e2e": 80.3, "cov": 92.2, "acc": 87.1}, "google_gemma-4-31b-it": {"e2e": 90.4, "cov": 97.2, "acc": 93.0}, "mistralai_ministral-14b-2512": {"e2e": 90.0, "cov": 98.2, "acc": 91.6}, "mistralai_mistral-small-3.2-24b-instruct": {"e2e": 94.5, "cov": 99.7, "acc": 94.8}, "openai_gpt-5.6-terra": {"e2e": 94.1, "cov": 98.2, "acc": 95.8}, "qwen_qwen3.6-27b": {"e2e": 94.2, "cov": 99.3, "acc": 94.9}, "qwen_qwen3.6-35b-a3b": {"e2e": 90.7, "cov": 99.1, "acc": 91.6}, "qwen_qwen3.8-27b": {"e2e": 93.2, "cov": 98.9, "acc": 94.2}, "qwen_qwen3.8-max": {"e2e": 95.8, "cov": 99.0, "acc": 96.7}}, "DocumentCategory": {"anthropic_claude-fable-5.1": {"e2e": 0.0, "cov": 100.0, "acc": 0.0}, "anthropic_claude-haiku-4.5": {"e2e": 0.0, "cov": 92.7, "acc": 0.0}, "anthropic_claude-opus-5": {"e2e": 0.0, "cov": 99.1, "acc": 0.0}, "google_gemini-3.6-flash": {"e2e": 0.0, "cov": 32.1, "acc": 0.0}, "google_gemini-3.6-flash_gcp": {"e2e": 0.0, "cov": 65.9, "acc": 0.0}, "google_gemma-4-26b-a4b-it": {"e2e": 0.0, "cov": 93.7, "acc": 0.0}, "google_gemma-4-31b-it": {"e2e": 0.9, "cov": 87.5, "acc": 1.0}, "mistralai_ministral-14b-2512": {"e2e": 0.7, "cov": 44.0, "acc": 1.5}, "mistralai_mistral-small-3.2-24b-instruct": {"e2e": 0.0, "cov": 67.0, "acc": 0.0}, "openai_gpt-5.6-terra": {"e2e": 0.0, "cov": 98.2, "acc": 0.0}, "qwen_qwen3.6-27b": {"e2e": 0.0, "cov": 99.9, "acc": 0.0}, "qwen_qwen3.6-35b-a3b": {"e2e": 0.0, "cov": 99.8, "acc": 0.0}, "qwen_qwen3.8-27b": {"e2e": 0.8, "cov": 99.9, "acc": 0.8}, "qwen_qwen3.8-max": {"e2e": 0.0, "cov": 99.9, "acc": 0.0}}, "CustomerCompanyAddress": {"anthropic_claude-fable-5.1": {"e2e": 74.0, "cov": 100.0, "acc": 74.0}, "anthropic_claude-haiku-4.5": {"e2e": 72.4, "cov": 98.8, "acc": 73.2}, "anthropic_claude-opus-5": {"e2e": 64.9, "cov": 100.0, "acc": 64.9}, "google_gemini-3.6-flash": {"e2e": 76.2, "cov": 100.0, "acc": 76.2}, "google_gemini-3.6-flash_gcp": {"e2e": 56.8, "cov": 100.0, "acc": 56.8}, "google_gemma-4-26b-a4b-it": {"e2e": 60.2, "cov": 90.5, "acc": 66.6}, "google_gemma-4-31b-it": {"e2e": 75.9, "cov": 98.6, "acc": 77.0}, "mistralai_ministral-14b-2512": {"e2e": 81.2, "cov": 99.1, "acc": 82.0}, "mistralai_mistral-small-3.2-24b-instruct": {"e2e": 67.5, "cov": 98.6, "acc": 68.4}, "openai_gpt-5.6-terra": {"e2e": 71.8, "cov": 99.9, "acc": 71.9}, "qwen_qwen3.6-27b": {"e2e": 75.0, "cov": 99.9, "acc": 75.1}, "qwen_qwen3.6-35b-a3b": {"e2e": 76.3, "cov": 99.9, "acc": 76.4}, "qwen_qwen3.8-27b": {"e2e": 81.6, "cov": 99.9, "acc": 81.7}, "qwen_qwen3.8-max": {"e2e": 64.4, "cov": 100.0, "acc": 64.4}}, "PONumber": {"anthropic_claude-fable-5.1": {"e2e": 58.8, "cov": 68.2, "acc": 86.2}, "anthropic_claude-haiku-4.5": {"e2e": 32.4, "cov": 45.4, "acc": 71.4}, "anthropic_claude-opus-5": {"e2e": 41.9, "cov": 54.1, "acc": 77.5}, "google_gemini-3.6-flash": {"e2e": 64.8, "cov": 78.2, "acc": 82.9}, "google_gemini-3.6-flash_gcp": {"e2e": 55.1, "cov": 66.5, "acc": 82.9}, "google_gemma-4-26b-a4b-it": {"e2e": 17.4, "cov": 23.6, "acc": 73.5}, "google_gemma-4-31b-it": {"e2e": 32.1, "cov": 50.9, "acc": 63.1}, "mistralai_ministral-14b-2512": {"e2e": 57.8, "cov": 79.7, "acc": 72.5}, "mistralai_mistral-small-3.2-24b-instruct": {"e2e": 56.1, "cov": 75.6, "acc": 74.2}, "openai_gpt-5.6-terra": {"e2e": 53.9, "cov": 71.0, "acc": 76.0}, "qwen_qwen3.6-27b": {"e2e": 55.8, "cov": 73.6, "acc": 75.8}, "qwen_qwen3.6-35b-a3b": {"e2e": 59.3, "cov": 73.9, "acc": 80.2}, "qwen_qwen3.8-27b": {"e2e": 56.0, "cov": 71.1, "acc": 78.7}, "qwen_qwen3.8-max": {"e2e": 55.1, "cov": 69.4, "acc": 79.4}}, "DeliveryNote": {"anthropic_claude-fable-5.1": {"e2e": 81.8, "cov": 94.5, "acc": 86.5}, "anthropic_claude-haiku-4.5": {"e2e": 34.9, "cov": 50.6, "acc": 69.0}, "anthropic_claude-opus-5": {"e2e": 80.2, "cov": 92.8, "acc": 86.4}, "google_gemini-3.6-flash": {"e2e": 75.5, "cov": 94.2, "acc": 80.1}, "google_gemini-3.6-flash_gcp": {"e2e": 78.1, "cov": 96.0, "acc": 81.3}, "google_gemma-4-26b-a4b-it": {"e2e": 28.4, "cov": 37.2, "acc": 76.4}, "google_gemma-4-31b-it": {"e2e": 52.3, "cov": 73.7, "acc": 71.0}, "mistralai_ministral-14b-2512": {"e2e": 68.0, "cov": 92.2, "acc": 73.8}, "mistralai_mistral-small-3.2-24b-instruct": {"e2e": 68.1, "cov": 90.2, "acc": 75.5}, "openai_gpt-5.6-terra": {"e2e": 72.9, "cov": 94.1, "acc": 77.4}, "qwen_qwen3.6-27b": {"e2e": 74.6, "cov": 93.9, "acc": 79.5}, "qwen_qwen3.6-35b-a3b": {"e2e": 76.0, "cov": 94.6, "acc": 80.3}, "qwen_qwen3.8-27b": {"e2e": 71.8, "cov": 91.6, "acc": 78.3}, "qwen_qwen3.8-max": {"e2e": 72.8, "cov": 91.0, "acc": 80.1}}, "DueDate": {"anthropic_claude-fable-5.1": {"e2e": 95.7, "cov": 97.0, "acc": 98.7}, "anthropic_claude-haiku-4.5": {"e2e": 74.5, "cov": 78.0, "acc": 95.5}, "anthropic_claude-opus-5": {"e2e": 94.8, "cov": 96.4, "acc": 98.4}, "google_gemini-3.6-flash": {"e2e": 91.9, "cov": 93.9, "acc": 97.8}, "google_gemini-3.6-flash_gcp": {"e2e": 91.7, "cov": 92.7, "acc": 98.9}, "google_gemma-4-26b-a4b-it": {"e2e": 47.9, "cov": 51.0, "acc": 93.8}, "google_gemma-4-31b-it": {"e2e": 70.6, "cov": 73.0, "acc": 96.7}, "mistralai_ministral-14b-2512": {"e2e": 86.8, "cov": 89.2, "acc": 97.4}, "mistralai_mistral-small-3.2-24b-instruct": {"e2e": 81.1, "cov": 84.0, "acc": 96.5}, "openai_gpt-5.6-terra": {"e2e": 90.7, "cov": 93.0, "acc": 97.5}, "qwen_qwen3.6-27b": {"e2e": 96.0, "cov": 98.0, "acc": 97.9}, "qwen_qwen3.6-35b-a3b": {"e2e": 94.6, "cov": 96.5, "acc": 98.0}, "qwen_qwen3.8-27b": {"e2e": 90.0, "cov": 91.8, "acc": 98.0}, "qwen_qwen3.8-max": {"e2e": 74.8, "cov": 77.7, "acc": 96.3}}, "PaymentTerm": {"anthropic_claude-fable-5.1": {"e2e": 95.2, "cov": 99.3, "acc": 95.8}, "anthropic_claude-haiku-4.5": {"e2e": 70.1, "cov": 75.2, "acc": 93.2}, "anthropic_claude-opus-5": {"e2e": 94.8, "cov": 98.8, "acc": 95.9}, "google_gemini-3.6-flash": {"e2e": 75.9, "cov": 80.9, "acc": 93.9}, "google_gemini-3.6-flash_gcp": {"e2e": 79.9, "cov": 82.7, "acc": 96.6}, "google_gemma-4-26b-a4b-it": {"e2e": 46.1, "cov": 49.9, "acc": 92.3}, "google_gemma-4-31b-it": {"e2e": 71.1, "cov": 77.5, "acc": 91.8}, "mistralai_ministral-14b-2512": {"e2e": 75.2, "cov": 81.9, "acc": 91.8}, "mistralai_mistral-small-3.2-24b-instruct": {"e2e": 78.6, "cov": 83.4, "acc": 94.2}, "openai_gpt-5.6-terra": {"e2e": 71.7, "cov": 75.8, "acc": 94.5}, "qwen_qwen3.6-27b": {"e2e": 81.3, "cov": 88.1, "acc": 92.3}, "qwen_qwen3.6-35b-a3b": {"e2e": 76.7, "cov": 81.6, "acc": 94.0}, "qwen_qwen3.8-27b": {"e2e": 87.9, "cov": 93.5, "acc": 94.0}, "qwen_qwen3.8-max": {"e2e": 69.3, "cov": 74.3, "acc": 93.3}}}, "fairDocs": 118, "totalSpend": 128.49};
+
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const fieldShort = {
+  VendorCompanyName:"Vendor name", VendorCompanyID:"Vendor ID", InvoiceDate:"Invoice date",
+  VendorCompanyAddress:"Vendor address", CustomerCompanyName:"Customer name", TotalAmount:"Total amount",
+  InvoiceID:"Invoice ID", CustomerCompanyID:"Customer ID", TotalwithoutTax:"Subtotal (excl. tax)",
+  TotalTax:"Total tax", CustomerCompanyAddress:"Customer address", PONumber:"PO number",
+  DeliveryNote:"Delivery note", DueDate:"Due date", PaymentTerm:"Payment terms"
+};
+const fmt$ = v => v == null ? "n/a" : "$" + (v*1000).toFixed(2);
+/* Readable label ink for text sitting on a filled mark. */
+function inkOn(hex) {
+  const h = hex.replace("#", "");
+  const [r, g, b] = [0, 2, 4].map(i => {
+    const c = parseInt(h.slice(i, i + 2), 16) / 255;
+    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  });
+  return (0.2126*r + 0.7152*g + 0.0722*b) > 0.42 ? "#0b0b0b" : "#ffffff";
+}
+
+/* ---------- shared tooltip ---------- */
+const tip = document.getElementById("tip");
+function bindTips(root) {
+  root.querySelectorAll("[data-tip]").forEach(el => {
+    el.addEventListener("mouseenter", () => { tip.innerHTML = el.dataset.tip; tip.style.display = "block"; });
+    el.addEventListener("mousemove", e => {
+      const pad = 14, w = tip.offsetWidth;
+      let x = e.pageX + pad;
+      if (x + w > document.documentElement.clientWidth - 8) x = e.pageX - w - pad;
+      tip.style.left = x + "px"; tip.style.top = (e.pageY + pad) + "px";
+    });
+    el.addEventListener("mouseleave", () => { tip.style.display = "none"; });
+  });
+}
+
+/* ---------- 1. leaderboard bars ---------- */
+function drawBars() {
+  const M = DATA.models;
+  const W = 940, rowH = 36, padT = 8, padB = 30, L = 190, R = 60;
+  const H = padT + M.length * rowH + padB;
+  const x = v => L + (W - L - R) * v / 100;
+  let s = `<svg viewBox="0 0 ${W} ${H}" width="${W}" style="max-width:100%;height:auto" role="img" aria-label="End-to-end score by model">`;
+  for (let g = 0; g <= 100; g += 20) {
+    s += `<line x1="${x(g)}" y1="${padT}" x2="${x(g)}" y2="${H-padB}" stroke="${g===0?css('--baseline'):css('--grid')}" stroke-width="1"/>`;
+    s += `<text class="axis-t" x="${x(g)}" y="${H-padB+16}" text-anchor="middle">${g}%</text>`;
+  }
+  M.forEach((m, i) => {
+    const y = padT + i * rowH + 7, h = 20;
+    const bw = x(m.e2e) - x(0);
+    const color = css("--series");
+    const r = 4;
+    s += `<text class="row-t" x="${L-10}" y="${y+h/2+4}" text-anchor="end">${m.name}</text>`;
+    s += `<path d="M${x(0)},${y} h${bw-r} a${r},${r} 0 0 1 ${r},${r} v${h-2*r} a${r},${r} 0 0 1 -${r},${r} h-${bw-r} z" fill="${color}"/>`;
+    const dx = x(m.fairE2e), dy = y + h/2;
+    s += `<path d="M${dx},${dy-5.5} l5.5,5.5 l-5.5,5.5 l-5.5,-5.5 z" fill="${css('--ink')}" stroke="${css('--surface')}" stroke-width="2"/>`;
+    const lx = Math.max(x(m.e2e), dx) + 10;
+    s += `<text class="val-t" x="${lx}" y="${y+h/2+4}">${m.e2e.toFixed(1)}%</text>`;
+    s += `<rect x="0" y="${padT+i*rowH}" width="${W}" height="${rowH}" fill="transparent" data-tip="<b>${m.name}</b><br>End-to-end: <b>${m.e2e.toFixed(1)}%</b> (${m.docs.toLocaleString()} docs)<br>Same-215-docs subset: <b>${m.fairE2e.toFixed(1)}%</b><br>Coverage ${m.cov}% · Accuracy ${m.acc}%"/>`;
+  });
+  s += `</svg>`;
+  const el = document.getElementById("chart-bars");
+  el.innerHTML = s; bindTips(el);
+}
+
+/* ---------- 2. scatter ---------- */
+function drawScatter() {
+  const pts = DATA.models.filter(m => m.costPerDoc > 0).map(m => ({
+    ...m, c: m.costPerDoc * 1000
+  }));
+  const lbl = {
+    "google_gemma-4-26b-a4b-it":  [9, 4, "start"],
+    "google_gemma-4-31b-it":      [9, 4, "start"],
+    "mistralai_ministral-14b-2512":[9, 4, "start"],
+    "qwen_qwen3.6-27b":           [0, -12, "middle"],
+    "anthropic_claude-haiku-4.5": [9, 4, "start"],
+    "openai_gpt-5.6-terra":       [4, 18, "start"],
+    "qwen_qwen3.6-35b-a3b":       [-4, -12, "end"],
+    "google_gemini-3.6-flash":    [9, -6, "start"],
+    "anthropic_claude-opus-5":    [-11, 4, "end"],
+    "qwen_qwen3.8-27b":           [9, 18, "start"],
+    "qwen_qwen3.8-max":           [9, 4, "start"],
+    "mistralai_mistral-small-3.2-24b-instruct": [9, -8, "start"],
+    "anthropic_claude-fable-5.1": [-11, -8, "end"],
+  };
+  const W = 940, H = 400, L = 58, R = 24, T = 18, B = 46;
+  const xmin = Math.log10(0.15), xmax = Math.log10(70);
+  const x = v => L + (W-L-R) * (Math.log10(v) - xmin) / (xmax - xmin);
+  const ymin = 55, ymax = 95;
+  const y = v => T + (H-T-B) * (1 - (v - ymin) / (ymax - ymin));
+  let s = `<svg viewBox="0 0 ${W} ${H}" width="${W}" style="max-width:100%;height:auto" role="img" aria-label="Cost per thousand documents versus end-to-end score">`;
+  for (let g = 60; g <= 90; g += 10) {
+    s += `<line x1="${L}" y1="${y(g)}" x2="${W-R}" y2="${y(g)}" stroke="${css('--grid')}" stroke-width="1"/>`;
+    s += `<text class="axis-t" x="${L-8}" y="${y(g)+4}" text-anchor="end">${g}%</text>`;
+  }
+  [0.2,0.5,1,2,5,10,20,50].forEach(t => {
+    s += `<line x1="${x(t)}" y1="${T}" x2="${x(t)}" y2="${H-B}" stroke="${css('--grid')}" stroke-width="1"/>`;
+    s += `<text class="axis-t" x="${x(t)}" y="${H-B+16}" text-anchor="middle">$${t < 1 ? t.toFixed(2) : t}</text>`;
+  });
+  s += `<line x1="${L}" y1="${H-B}" x2="${W-R}" y2="${H-B}" stroke="${css('--baseline')}" stroke-width="1"/>`;
+  s += `<text class="axis-t" x="${(L+W-R)/2}" y="${H-8}" text-anchor="middle">cost per 1,000 documents (log scale) →</text>`;
+  s += `<text class="hint-t" x="${L+6}" y="${T+12}">↑ higher score, cheaper ← is better</text>`;
+  pts.forEach(m => {
+    const color = css("--series");
+    const [dx, dy, anc] = lbl[m.slug] || [9, 4, "start"];
+    s += `<circle cx="${x(m.c)}" cy="${y(m.e2e)}" r="6" fill="${color}" stroke="${css('--surface')}" stroke-width="2"/>`;
+    s += `<text class="pt-t" x="${x(m.c)+dx}" y="${y(m.e2e)+dy}" text-anchor="${anc}">${m.name}</text>`;
+    s += `<circle cx="${x(m.c)}" cy="${y(m.e2e)}" r="14" fill="transparent" data-tip="<b>${m.name}</b><br>End-to-end: <b>${m.e2e.toFixed(1)}%</b><br>Cost: <b>${fmt$(m.costPerDoc)}</b> / 1k docs<br>Avg latency: ${m.latency.toFixed(1)} s/doc"/>`;
+  });
+  s += `</svg>`;
+  const el = document.getElementById("chart-scatter");
+  el.innerHTML = s; bindTips(el);
+}
+
+/* ---------- 3. field heatmap (scale stretched to the data) ---------- */
+// One blue ramp is the report's whole palette: the heatmap reads it as a
+// continuous scale, the failure bars take four ordered steps of it, and the
+// leaderboard/scatter marks use its mid step.
+const BLUES = ["#e4eefb","#cde2fb","#b7d3f6","#9ec5f4","#86b6ef","#6da7ec","#5598e7","#3987e5","#2a78d6","#256abf","#1c5cab","#184f95","#104281"];
+const isDark = () => {
+  const t = document.documentElement.getAttribute("data-theme");
+  if (t) return t === "dark";
+  return matchMedia("(prefers-color-scheme: dark)").matches;
+};
+// Scores cluster between 70 and 99, so a linear 0–100 ramp makes most cells
+// near-identical. Squaring t expands the top of the range where the data
+// lives; the ramp legend is drawn through the same function so it stays honest.
+function seqColor(v) {
+  const t = Math.pow(Math.max(0, Math.min(1, (v - 15) / 85)), 2);
+  const idx = Math.round(t * (BLUES.length - 1));
+  return BLUES[isDark() ? (BLUES.length - 1 - idx) : idx];
+}
+function drawHeatmap() {
+  const hm = document.getElementById("heatmap");
+  const F = DATA.fieldOrder, M = DATA.models;
+  hm.style.gridTemplateColumns = `180px repeat(${F.length}, minmax(34px, 1fr))`;
+  let h = `<div></div>`;
+  F.forEach(f => { h += `<div class="cl">${fieldShort[f]}</div>`; });
+  M.forEach(m => {
+    h += `<div class="rl">${m.name}</div>`;
+    F.forEach(f => {
+      const c = DATA.fields[f][m.slug];
+      h += `<div class="cell" style="background:${seqColor(c.e2e)}" data-tip="<b>${m.name}</b> · ${fieldShort[f]}<br>End-to-end: <b>${c.e2e}%</b><br>Coverage ${c.cov}% · Accuracy ${c.acc}%"></div>`;
+    });
+  });
+  hm.innerHTML = h; bindTips(hm);
+  document.getElementById("rampbar").innerHTML =
+    [15,55,70,80,86,90,93,95,97,98,99,100].map(v => `<i style="background:${seqColor(v)}"></i>`).join("");
+  document.getElementById("rampnote").textContent = "scale stretched toward the 70–100% band where scores cluster";
+}
+
+const FAILURE = {"VendorCompanyName": {"exact": 36.7, "format": 41.7, "wrong": 21.2, "missing": 0.4, "present": 29194}, "VendorCompanyID": {"exact": 41.6, "format": 33.0, "wrong": 17.6, "missing": 7.7, "present": 29096}, "InvoiceDate": {"exact": 84.7, "format": 10.1, "wrong": 4.4, "missing": 0.9, "present": 29144}, "VendorCompanyAddress": {"exact": 30.5, "format": 53.2, "wrong": 12.0, "missing": 4.4, "present": 29049}, "CustomerCompanyName": {"exact": 79.0, "format": 13.8, "wrong": 6.0, "missing": 1.3, "present": 28994}, "TotalAmount": {"exact": 5.8, "format": 87.8, "wrong": 5.6, "missing": 0.8, "present": 28914}, "InvoiceID": {"exact": 82.5, "format": 12.9, "wrong": 4.0, "missing": 0.5, "present": 28900}, "CustomerCompanyID": {"exact": 57.7, "format": 22.6, "wrong": 11.0, "missing": 8.7, "present": 28724}, "TotalwithoutTax": {"exact": 6.2, "format": 79.9, "wrong": 12.4, "missing": 1.5, "present": 28655}, "TotalTax": {"exact": 8.9, "format": 82.5, "wrong": 6.6, "missing": 2.0, "present": 28505}, "CustomerCompanyAddress": {"exact": 18.5, "format": 55.9, "wrong": 24.2, "missing": 1.3, "present": 27223}, "PONumber": {"exact": 39.6, "format": 9.0, "wrong": 16.1, "missing": 35.3, "present": 21863}, "DeliveryNote": {"exact": 49.2, "format": 13.8, "wrong": 19.5, "missing": 17.6, "present": 17533}, "DueDate": {"exact": 58.9, "format": 23.4, "wrong": 2.4, "missing": 15.3, "present": 22199}, "PaymentTerm": {"exact": 52.4, "format": 21.8, "wrong": 5.5, "missing": 20.3, "present": 17069}};
+const hardestFirst = () => [...DATA.fieldOrder].reverse();
+
+/* ---------- 5. what kind of failure? (stacked bars, all runs pooled) ---------- */
+function drawFailure() {
+  const F = hardestFirst();
+  const parts = [
+    { key: "exact",   label: "Exact match",         color: "--f-exact"   },
+    { key: "format",  label: "Formatting mismatch", color: "--f-format"  },
+    { key: "wrong",   label: "Wrong value",         color: "--f-wrong"   },
+    { key: "missing", label: "Not returned",        color: "--f-missing" },
+  ];
+  const W = 940, rowH = 36, padT = 26, padB = 10, L = 190, R = 64;
+  const H = padT + F.length * rowH + padB;
+  const x = v => L + (W - L - R) * v / 100;
+  let s = `<svg viewBox="0 0 ${W} ${H}" width="${W}" style="max-width:100%;height:auto" role="img" aria-label="Outcome split per field across all model runs">`;
+  F.forEach((f, i) => {
+    if (i % 2 === 0)
+      s += `<rect x="0" y="${padT + i*rowH}" width="${W-R+40}" height="${rowH}" fill="${css('--zebra')}"/>`;
+  });
+  for (let g = 0; g <= 100; g += 25) {
+    s += `<line x1="${x(g)}" y1="${padT}" x2="${x(g)}" y2="${H-padB}" stroke="${css('--grid')}" stroke-width="1"/>`;
+    s += `<text class="axis-t" x="${x(g)}" y="${padT-9}" text-anchor="middle">${g}%</text>`;
+  }
+  s += `<text class="axis-t" x="${W-8}" y="${padT-9}" text-anchor="end">match</text>`;
+  F.forEach((f, i) => {
+    const d = FAILURE[f];
+    const y = padT + i * rowH + 8, h = rowH - 16;
+    s += `<text class="row-t" x="${L-12}" y="${y+h/2+4}" text-anchor="end">${fieldShort[f]}</text>`;
+    let cur = 0;
+    parts.forEach(p => {
+      const v = d[p.key];
+      if (v <= 0) return;
+      const x0 = x(cur), wSeg = Math.max(x(cur + v) - x(cur) - 2, 1);
+      s += `<rect x="${x0}" y="${y}" width="${wSeg}" height="${h}" rx="2" fill="${css(p.color)}" data-tip="<b>${fieldShort[f]}</b> · ${p.label}<br><b>${v}%</b> of ${d.present.toLocaleString()} ground-truth values"/>`;
+      // Every segment is a step of one blue ramp, so a fixed label colour would
+      // fail on one end or the other (and the ramp inverts in dark mode) —
+      // pick the label ink from the segment's own luminance instead.
+      if (p.key === "exact" && wSeg > 34)
+        s += `<text x="${x0+8}" y="${y+h/2+4}" font-size="11" fill="${inkOn(css(p.color))}" pointer-events="none">${Math.round(v)}</text>`;
+      if (p.key === "missing" && v >= 8)
+        s += `<text x="${x0+wSeg/2}" y="${y+h/2+4}" font-size="11" fill="${inkOn(css(p.color))}" text-anchor="middle" pointer-events="none">${Math.round(v)}</text>`;
+      cur += v;
+    });
+    s += `<text class="axis-t" x="${W-8}" y="${y+h/2+4}" text-anchor="end">${Math.round(d.exact + d.format)}%</text>`;
+  });
+  s += `</svg>`;
+  const el = document.getElementById("chart-failure");
+  el.innerHTML = s; bindTips(el);
+}
+
+/* ---------- field table (accessibility view) ---------- */
+function drawFieldTable() {
+  const F = DATA.fieldOrder, M = DATA.models;
+  let h = `<thead><tr><th>Field</th>${M.map(m => `<th>${m.name}</th>`).join("")}</tr></thead><tbody>`;
+  F.forEach(f => {
+    h += `<tr><td class="mname">${fieldShort[f]}</td>${M.map(m => `<td>${DATA.fields[f][m.slug].e2e.toFixed(1)}%</td>`).join("")}</tr>`;
+  });
+  document.getElementById("fieldtable").innerHTML = h + "</tbody>";
+}
+
+/* ---------- main table ---------- */
+function drawMainTable() {
+  const M = DATA.models;
+  const best = {
+    e2e: Math.max(...M.map(m => m.e2e)),
+    fair: Math.max(...M.map(m => m.fairE2e)),
+    cov: Math.max(...M.map(m => m.cov)),
+    acc: Math.max(...M.map(m => m.acc)),
+    cost: Math.min(...M.filter(m => m.costPerDoc > 0).map(m => m.costPerDoc)),
+  };
+  const tb = document.querySelector("#maintable tbody");
+  tb.innerHTML = M.map(m => {
+    const lat = m.slug === "anthropic_claude-haiku-4.5" ? `${m.latency.toFixed(0)} s*` : `${m.latency.toFixed(1)} s`;
+    const cost = m.costPerDoc === 0 ? "n/a" : fmt$(m.costPerDoc);
+    return `<tr>
+      <td class="mname">${m.name}</td>
+      <td class="${m.e2e===best.e2e?'best':''}">${m.e2e.toFixed(1)}%</td>
+      <td class="${m.fairE2e===best.fair?'best':''}">${m.fairE2e.toFixed(1)}%</td>
+      <td class="${m.cov===best.cov?'best':''}">${m.cov.toFixed(1)}%</td>
+      <td class="${m.acc===best.acc?'best':''}">${m.acc.toFixed(1)}%</td>
+      <td class="${m.costPerDoc===best.cost?'best':''}">${cost}</td>
+      <td>${Math.round(m.tokPerDoc).toLocaleString()}</td>
+      <td>${lat}</td>
+      <td>${m.docs.toLocaleString()}</td>
+    </tr>`;
+  }).join("");
+}
+
+function drawAll() { drawBars(); drawScatter(); drawHeatmap(); drawFailure(); drawFieldTable(); drawMainTable(); }
+drawAll();
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", drawAll);
+new MutationObserver(drawAll).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+</script>
+</body></html>

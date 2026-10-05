@@ -1,0 +1,15 @@
+# Large / customer data — kept local only
+merged_documents.json
+pdfs/
+ground_truth.json
+ocr_cache.jsonl
+results/
+vendor_name_fixes_log.json
+*.bak
+
+# Generated / OS cruft
+__pycache__/
+*.pyc
+.report_charts/
+.DS_Store
+.env

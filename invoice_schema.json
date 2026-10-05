@@ -1,0 +1,118 @@
+{
+  "schema_name": "Invoice",
+  "version": "1.0",
+  "fields": [
+    {
+      "name": "VendorCompanyName",
+      "type": "string",
+      "mandatory": true,
+      "description": "Supplier / vendor legal name",
+      "fill_rate": "99.7%"
+    },
+    {
+      "name": "VendorCompanyID",
+      "type": "string",
+      "mandatory": true,
+      "description": "Vendor tax or registration ID (NIF, CIF, VAT number)",
+      "fill_rate": "99.6%"
+    },
+    {
+      "name": "InvoiceDate",
+      "type": "date",
+      "mandatory": true,
+      "description": "Date the invoice was issued",
+      "fill_rate": "99.6%"
+    },
+    {
+      "name": "VendorCompanyAddress",
+      "type": "string",
+      "mandatory": true,
+      "description": "Vendor registered address",
+      "fill_rate": "99.2%"
+    },
+    {
+      "name": "CustomerCompanyName",
+      "type": "string",
+      "mandatory": true,
+      "description": "Buyer / customer legal name",
+      "fill_rate": "99.1%"
+    },
+    {
+      "name": "TotalAmount",
+      "type": "number",
+      "mandatory": true,
+      "description": "Grand total including all taxes",
+      "fill_rate": "98.9%"
+    },
+    {
+      "name": "InvoiceID",
+      "type": "string",
+      "mandatory": true,
+      "description": "Invoice number or reference",
+      "fill_rate": "98.8%"
+    },
+    {
+      "name": "CustomerCompanyID",
+      "type": "string",
+      "mandatory": true,
+      "description": "Customer tax or registration ID",
+      "fill_rate": "98.1%"
+    },
+    {
+      "name": "TotalwithoutTax",
+      "type": "number",
+      "mandatory": true,
+      "description": "Net total before taxes (taxable base)",
+      "fill_rate": "98.0%"
+    },
+    {
+      "name": "TotalTax",
+      "type": "number",
+      "mandatory": true,
+      "description": "Total tax or VAT amount",
+      "fill_rate": "97.4%"
+    },
+    {
+      "name": "DocumentCategory",
+      "type": "string",
+      "mandatory": false,
+      "description": "Category or type classification of the document",
+      "fill_rate": "96.3%"
+    },
+    {
+      "name": "CustomerCompanyAddress",
+      "type": "string",
+      "mandatory": false,
+      "description": "Buyer billing address",
+      "fill_rate": "94.4%"
+    },
+    {
+      "name": "PONumber",
+      "type": "string",
+      "mandatory": false,
+      "description": "Purchase order number",
+      "fill_rate": "85.8%"
+    },
+    {
+      "name": "DeliveryNote",
+      "type": "string",
+      "mandatory": false,
+      "description": "Delivery note or albaran reference",
+      "fill_rate": "82.0%"
+    },
+    {
+      "name": "DueDate",
+      "type": "date",
+      "mandatory": false,
+      "description": "Payment due date",
+      "fill_rate": "78.4%"
+    },
+    {
+      "name": "PaymentTerm",
+      "type": "string",
+      "mandatory": false,
+      "description": "Payment terms (e.g. 30 days net)",
+      "fill_rate": "76.8%"
+    }
+  ]
+}
